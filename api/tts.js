@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+
   if (req.method !== "POST") {
     return res.status(405).json({
       success: false,
@@ -7,6 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -29,120 +31,63 @@ export default async function handler(req, res) {
       });
     }
 
-    // STEP 1: Analyze emotion and speaking style
-    const styleResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Analyze this Bengali speech for natural human delivery.
+    // ONE STEP: EXPRESSIVE TEXT TO SPEECH
 
-Determine emotion, speed, tone, pauses, emphasis and laughter.
-
-Understand the meaning and context.
-Never force laughter or exaggerated emotions.
-Return only valid JSON.
-Do not rewrite the original text.
-
-Text:
-${text}`
-            }]
-          }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                emotion: { type: "STRING" },
-                speed: { type: "STRING" },
-                tone: { type: "STRING" },
-                pauses: { type: "STRING" },
-                emphasis: { type: "STRING" },
-                laughter: { type: "BOOLEAN" }
-              },
-              required: [
-                "emotion",
-                "speed",
-                "tone",
-                "pauses",
-                "emphasis",
-                "laughter"
-              ]
-            }
-          }
-        })
-      }
-    );
-
-    const styleData = await styleResponse.json();
-
-    if (!styleResponse.ok) {
-      console.error("Style analysis error:", styleData);
-      return res.status(502).json({
-        success: false,
-        error: "Emotion analysis failed"
-      });
-    }
-
-    const styleText =
-      styleData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!styleText) {
-      return res.status(502).json({
-        success: false,
-        error: "No emotion analysis received"
-      });
-    }
-
-    const style = JSON.parse(styleText);
-
-    // STEP 2: Convert text into expressive speech
-    const delivery = `
-Emotion: ${style.emotion}.
-Speaking speed: ${style.speed}.
-Voice tone: ${style.tone}.
-Pauses: ${style.pauses}.
-Emphasis: ${style.emphasis}.
-Laughter appropriate: ${style.laughter}.
-
-Speak naturally according to these instructions.
-Use subtle emotional expression and realistic conversational rhythm.
-Do not exaggerate emotions or force laughter.
-`;
-
-    const ttsResponse = await fetch(
+    const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": apiKey
         },
+
         body: JSON.stringify({
+
           contents: [{
             parts: [{
-              text: `Speak the following transcript exactly as written.
+              text: `
+You are DIPTI AI, a warm and expressive female voice assistant.
 
-Voice: Warm, gentle, expressive female voice.
-Language: Natural Bangladeshi Bengali.
-Style: Caring, friendly and conversational.
+Speak the following text exactly as written.
 
-${delivery}
+LANGUAGE:
+Natural Bangladeshi Bengali.
 
-Do not translate, rewrite, explain or add words.
+VOICE:
+Warm, gentle, friendly female voice.
+Natural conversational rhythm.
 
-Transcript:
-${text}`
+EMOTIONAL DELIVERY:
+Understand the meaning and context of the Bengali text.
+Automatically choose an appropriate emotion.
+Express happiness, curiosity, concern or seriousness naturally when appropriate.
+Never force laughter or exaggerate emotions.
+
+SPEAKING STYLE:
+Use natural pauses between sentences.
+Use appropriate emphasis on important words.
+Avoid robotic or monotonous delivery.
+Keep the speaking speed natural and moderately quick.
+
+IMPORTANT:
+Do not translate the text.
+Do not rewrite it.
+Do not add extra words.
+Do not explain anything.
+Speak only the exact transcript below.
+
+TRANSCRIPT:
+${text.trim()}
+`
             }]
           }],
+
           generationConfig: {
+
             responseModalities: ["AUDIO"],
+
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
@@ -155,24 +100,27 @@ ${text}`
       }
     );
 
-    const audioData = await ttsResponse.json();
+    const data = await response.json();
 
-    if (!ttsResponse.ok) {
-      console.error("TTS error:", audioData);
+    if (!response.ok) {
+
+      console.error("TTS provider error:", data);
+
       return res.status(502).json({
         success: false,
         error: "TTS provider failed",
         providerMessage:
-          audioData?.error?.message || "Unknown error"
+          data?.error?.message || "Unknown error"
       });
     }
 
     const audio =
-      audioData.candidates?.[0]?.content?.parts?.find(
+      data.candidates?.[0]?.content?.parts?.find(
         part => part.inlineData
       )?.inlineData;
 
     if (!audio?.data) {
+
       return res.status(502).json({
         success: false,
         error: "Audio not received"
@@ -180,14 +128,26 @@ ${text}`
     }
 
     return res.status(200).json({
+
       success: true,
+
       audio: audio.data,
+
       mimeType: audio.mimeType,
-      style: style
+
+      style: {
+        emotion: "context-aware",
+        speed: "moderately quick",
+        tone: "expressive",
+        pauses: "natural",
+        emphasis: "context-aware",
+        laughter: "natural when appropriate"
+      }
     });
 
   } catch (error) {
-    console.error("Expressive TTS error:", error);
+
+    console.error("Fast TTS error:", error);
 
     return res.status(500).json({
       success: false,
