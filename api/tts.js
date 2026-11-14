@@ -40,7 +40,13 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: "Speak naturally in clear Bangladeshi Bengali. Use a warm, gentle, friendly female voice. Read this text naturally: " + text
+             text: `Say the following text aloud exactly as written.
+Use a warm, gentle, natural female voice.
+Speak in clear Bangladeshi Bengali with natural pauses and expressive emotion.
+Do not answer the text or add any extra words.
+
+Transcript:
+${text}`
             }]
           }],
           generationConfig: {
