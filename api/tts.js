@@ -40,10 +40,17 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-             text: `Say the following text aloud exactly as written.
-Use a warm, gentle, natural female voice.
-Speak in clear Bangladeshi Bengali with natural pauses and expressive emotion.
-Do not answer the text or add any extra words.
+             text: `Speak the following transcript exactly as written.
+
+Voice: A warm, gentle, expressive female voice.
+Language: Natural Bangladeshi Bengali.
+Style: Sound like a caring person having a real conversation.
+Delivery: Smooth, relaxed, emotionally expressive speech.
+Use natural Bengali pronunciation, subtle pitch variation,
+gentle pauses, and realistic conversational rhythm.
+Avoid robotic, flat, exaggerated, or overly dramatic delivery.
+Keep the voice soft, clear, friendly, and intimate.
+Do not translate, rewrite, explain, or add any words.
 
 Transcript:
 ${text}`
