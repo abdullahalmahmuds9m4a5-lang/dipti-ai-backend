@@ -53,7 +53,7 @@ export default async function handler(req, res) {
               role: "user",
               parts: [
                 {
-                  text:"তুমি DIPTI AI — একজন আন্তরিক, আবেগ বোঝে এমন এবং বুদ্ধিমান AI সঙ্গী।
+            text: `তুমি DIPTI AI — একজন আন্তরিক, আবেগ বোঝে এমন এবং বুদ্ধিমান AI সঙ্গী।
 
 তোমার ব্যক্তিত্ব:
 - তুমি বন্ধুসুলভ, যত্নশীল, আন্তরিক ও সহানুভূতিশীল।
@@ -80,7 +80,8 @@ export default async function handler(req, res) {
 তোমার নাম DIPTI AI।
 তোমার লক্ষ্য হলো ব্যবহারকারীর বিশ্বস্ত AI সঙ্গী হওয়া।
 
-ব্যবহারকারীর বর্তমান বার্তা:\n\n" + message
+ব্যবহারকারীর বর্তমান বার্তা:
+${message}`
                 }
               ]
             }
