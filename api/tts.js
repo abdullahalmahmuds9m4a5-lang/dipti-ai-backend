@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const { text } = req.body || {};
+    const { text, style } = req.body || {};
 
     if (
       typeof text !== "string" ||
@@ -29,6 +29,31 @@ export default async function handler(req, res) {
       });
     }
 
+    const emotion = style?.emotion || "neutral";
+    const speed = style?.speed || "normal";
+    const tone = style?.tone || "warm";
+    const pauses = style?.pauses || "Use natural pauses";
+    const emphasis = style?.emphasis || "Use natural emphasis";
+    const laughter = style?.laughter === true;
+
+    const deliveryInstructions = `
+Emotion: ${emotion}
+Speaking speed: ${speed}
+Voice tone: ${tone}
+Pauses: ${pauses}
+Emphasis: ${emphasis}
+Laughter: ${laughter
+  ? "A subtle natural smile or gentle laugh only if appropriate."
+  : "Do not laugh."}
+
+Speak naturally in Bangladeshi Bengali.
+Sound like a caring person in a real conversation.
+Use expressive but realistic pitch variation.
+Follow the emotional meaning of the transcript.
+Avoid robotic, flat or exaggerated delivery.
+Do not add, remove, translate or rewrite any words.
+`;
+
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",
       {
@@ -40,19 +65,10 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-             text: `Speak the following transcript exactly as written.
+              text: `${deliveryInstructions}
 
-Voice: A warm, gentle, expressive female voice.
-Language: Natural Bangladeshi Bengali.
-Style: Sound like a caring person having a real conversation.
-Delivery: Smooth, relaxed, emotionally expressive speech.
-Use natural Bengali pronunciation, subtle pitch variation,
-gentle pauses, and realistic conversational rhythm.
-Avoid robotic, flat, exaggerated, or overly dramatic delivery.
-Keep the voice soft, clear, friendly, and intimate.
-Do not translate, rewrite, explain, or add any words.
+Speak this exact transcript:
 
-Transcript:
 ${text}`
             }]
           }],
@@ -74,11 +90,13 @@ ${text}`
 
     if (!response.ok) {
       console.error("TTS error:", response.status, data);
+
       return res.status(502).json({
         success: false,
         error: "TTS provider failed",
         providerStatus: response.status,
-        providerMessage: data?.error?.message || "Unknown error"
+        providerMessage:
+          data?.error?.message || "Unknown error"
       });
     }
 
