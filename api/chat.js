@@ -65,11 +65,23 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(502).json({
-        success: false,
-        error: "AI provider request failed"
-      });
-    }
+
+  const providerMessage =
+    data?.error?.message || "Unknown Gemini API error";
+
+  console.error(
+    "Gemini API Error:",
+    response.status,
+    providerMessage
+  );
+
+  return res.status(502).json({
+    success: false,
+    error: "AI provider request failed",
+    providerStatus: response.status,
+    providerMessage: providerMessage
+  });
+}
 
     const answer =
       data.candidates?.[0]?.content?.parts
