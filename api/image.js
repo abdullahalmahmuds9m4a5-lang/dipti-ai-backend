@@ -15,12 +15,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
-    if (!apiKey) {
+    if (!accountId || !apiToken) {
       return res.status(500).json({
         success: false,
-        error: "AI configuration missing"
+        error: "Cloudflare configuration missing"
       });
     }
 
@@ -37,57 +38,60 @@ export default async function handler(req, res) {
       });
     }
 
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          model: "gemini-3.1-flash-image",
-          input:
-            "Generate one high-quality image based on this request. " +
-            "Return an image, not just a written explanation. Prompt: " +
-            prompt.trim()
-        })
-      }
-    );
+    // Prepare image generation request
+    const formData = new FormData();
 
-    const data = await response.json();
+    formData.append("prompt", prompt.trim());
+    formData.append("width", "1024");
+    formData.append("height", "1024");
 
-    if (!response.ok) {
+    const model = "@cf/black-forest-labs/flux-2-klein-9b";
+
+    const apiUrl =
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiToken}`
+      },
+      body: formData
+    });
+
+    const responseText = await response.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error("Cloudflare returned invalid JSON");
+      return res.status(502).json({
+        success: false,
+        error: "Invalid image provider response"
+      });
+    }
+
+    if (!response.ok || data.success === false) {
       console.error(
-        "Gemini image API error:",
+        "Cloudflare Image API Error:",
         response.status,
-        data?.error?.message || data
+        data.errors || data
       );
 
       return res.status(502).json({
         success: false,
-        error: data?.error?.message || "Image provider request failed"
+        error: "Image generation provider failed"
       });
     }
 
-    // First, check the direct output_image property.
-    let image = data?.output_image;
+    const imageBase64 = data.result?.image;
 
-    // If not found, check the steps array.
-    if (!image?.data && Array.isArray(data?.steps)) {
-      for (const step of data.steps) {
-        if (Array.isArray(step?.content)) {
-          image = step.content.find(
-            item => item?.type === "image" && item?.data
-          );
-
-          if (image) break;
-        }
-      }
-    }
-
-    if (!image?.data) {
-      console.error("No image data returned:", data);
+    if (
+      typeof imageBase64 !== "string" ||
+      imageBase64.length === 0
+    ) {
+      console.error("No image data received from Cloudflare");
 
       return res.status(502).json({
         success: false,
@@ -95,19 +99,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const mimeType =
-      image.mime_type ||
-      image.mimeType ||
-      "image/png";
-
+    // Return image in Android-compatible format
     return res.status(200).json({
       success: true,
-      imageUrl: `data:${mimeType};base64,${image.data}`,
-      mimeType: mimeType
+      imageUrl: "data:image/png;base64," + imageBase64
     });
 
   } catch (error) {
-    console.error("Image generation error:", error);
+    console.error("Image Generation Error:", error);
 
     return res.status(500).json({
       success: false,
