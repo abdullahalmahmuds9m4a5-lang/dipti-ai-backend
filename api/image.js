@@ -16,6 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+
     if (!apiKey) {
       return res.status(500).json({
         success: false,
@@ -24,6 +25,7 @@ export default async function handler(req, res) {
     }
 
     const prompt = req.body?.prompt;
+
     if (
       typeof prompt !== "string" ||
       prompt.trim().length === 0 ||
@@ -41,12 +43,14 @@ export default async function handler(req, res) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-          "Api-Revision": "2026-05-20"
+          "x-goog-api-key": apiKey
         },
         body: JSON.stringify({
-          model: "gemini-nano-banana-2.1",
-          input: "Generate one image based on this user request. Return an image, not a written explanation. Prompt: " + prompt.trim()
+          model: "gemini-3.1-flash-image",
+          input:
+            "Generate one high-quality image based on this request. " +
+            "Return an image, not just a written explanation. Prompt: " +
+            prompt.trim()
         })
       }
     );
@@ -54,41 +58,57 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      const providerMessage = data?.error?.message || "Image provider request failed";
-      console.error("Gemini image API error:", response.status, providerMessage);
+      console.error(
+        "Gemini image API error:",
+        response.status,
+        data?.error?.message || data
+      );
+
       return res.status(502).json({
         success: false,
-        error: "Image provider request failed"
+        error: data?.error?.message || "Image provider request failed"
       });
     }
 
+    // First, check the direct output_image property.
     let image = data?.output_image;
+
+    // If not found, check the steps array.
     if (!image?.data && Array.isArray(data?.steps)) {
       for (const step of data.steps) {
-        const content = Array.isArray(step?.content) ? step.content : [];
-        image = content.find(item => item?.type === "image" && item?.data);
-        if (image) break;
+        if (Array.isArray(step?.content)) {
+          image = step.content.find(
+            item => item?.type === "image" && item?.data
+          );
+
+          if (image) break;
+        }
       }
     }
 
     if (!image?.data) {
-      console.error("Gemini image API returned no image data");
+      console.error("No image data returned:", data);
+
       return res.status(502).json({
         success: false,
         error: "No image was returned"
       });
     }
 
-    const mimeType = typeof image.mime_type === "string"
-      ? image.mime_type
-      : (typeof image.mimeType === "string" ? image.mimeType : "image/png");
+    const mimeType =
+      image.mime_type ||
+      image.mimeType ||
+      "image/png";
 
     return res.status(200).json({
       success: true,
-      imageUrl: "data:" + mimeType + ";base64," + image.data
+      imageUrl: `data:${mimeType};base64,${image.data}`,
+      mimeType: mimeType
     });
+
   } catch (error) {
     console.error("Image generation error:", error);
+
     return res.status(500).json({
       success: false,
       error: "Image generation failed"
